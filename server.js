@@ -4,6 +4,18 @@ import * as cheerio from 'cheerio';
 
 const app = express();
 
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
 const PORT = process.env.PORT || 8000;
 
 app.get('/', (req, res) => {
@@ -18,12 +30,6 @@ app.get('/mypl/v1/search', async (req, res) => {
     const source = req.query.source || 'fanfilm4k';
     const title = req.query.title || '';
 
-    if (!title) {
-      return res.json({
-        results: []
-      });
-    }
-
     let url = '';
 
     if (source === 'fanfilm4k') {
@@ -32,40 +38,44 @@ app.get('/mypl/v1/search', async (req, res) => {
         encodeURIComponent(title);
     }
 
-    console.log('SEARCH URL:', url);
+    if (source === 'uafix') {
+      url =
+        'https://uafix.net/?s=' +
+        encodeURIComponent(title);
+    }
+
+    if (source === 'anwap') {
+      url =
+        'https://my.anwap.love/?do=search&subaction=search&story=' +
+        encodeURIComponent(title);
+    }
 
     const response = await axios.get(url, {
       headers: {
         'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          'Mozilla/5.0'
       }
     });
 
-    const html = response.data;
-
-    const $ = cheerio.load(html);
+    const $ = cheerio.load(response.data);
 
     const results = [];
 
     $('a').each((i, el) => {
       const href = $(el).attr('href') || '';
-
       const text = $(el).text().trim();
 
-      const img =
-        $(el).find('img').attr('src') ||
-        $(el).find('img').attr('data-src') ||
-        '';
-
       if (
-        href.includes('fanfilm4k') &&
-        text.length > 1
+        href &&
+        text &&
+        text.length > 1 &&
+        href.includes('.html')
       ) {
         results.push({
           id: href,
-          title: text.slice(0, 120),
+          title: text,
           subtitle: source,
-          poster: img,
+          poster: '',
           serial: false,
           ref: {
             url: href
@@ -77,17 +87,41 @@ app.get('/mypl/v1/search', async (req, res) => {
     res.json({
       results: results.slice(0, 20)
     });
-
   } catch (e) {
-    console.error(e);
-
-    res.json({
-      results: [],
-      error: String(e)
+    res.status(500).json({
+      error: true,
+      message: e.toString()
     });
   }
 });
 
+app.get('/mypl/v1/stream', async (req, res) => {
+  try {
+    res.json({
+      url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      title: 'Test Stream',
+      quality: {},
+      subtitles: []
+    });
+  } catch (e) {
+    res.status(500).json({
+      error: true
+    });
+  }
+});
+
+app.get('/mypl/v1/seasons', async (req, res) => {
+  res.json({
+    seasons: []
+  });
+});
+
+app.get('/mypl/v1/episodes', async (req, res) => {
+  res.json({
+    episodes: []
+  });
+});
+
 app.listen(PORT, () => {
-  console.log(`Bridge started on port ${PORT}`);
+  console.log('Bridge started on port ' + PORT);
 });
