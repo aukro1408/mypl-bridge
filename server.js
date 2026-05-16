@@ -9,28 +9,30 @@ const PORT = process.env.PORT || 8000;
 app.get('/', (req, res) => {
   res.json({
     status: 'ok',
-    message: 'mypl bridge working'
+    service: 'mypl-bridge'
   });
 });
 
 app.get('/mypl/v1/search', async (req, res) => {
   try {
-    const source = req.query.source || 'uafix';
+    const source = req.query.source || 'fanfilm4k';
     const title = req.query.title || '';
 
     if (!title) {
-      return res.json({ results: [] });
+      return res.json({
+        results: []
+      });
     }
 
     let url = '';
 
-    if (source === 'uafix') {
-      url = `https://uafix.net/?s=${encodeURIComponent(title)}`;
+    if (source === 'fanfilm4k') {
+      url =
+        'https://v12.fanfilm4k.media/index.php?do=search&subaction=search&story=' +
+        encodeURIComponent(title);
     }
 
-    if (!url) {
-      return res.json({ results: [] });
-    }
+    console.log('SEARCH URL:', url);
 
     const response = await axios.get(url, {
       headers: {
@@ -45,19 +47,20 @@ app.get('/mypl/v1/search', async (req, res) => {
 
     const results = [];
 
-    $('.movie-item, .shortstory, article').each((i, el) => {
-      const a = $(el).find('a').first();
+    $('a').each((i, el) => {
+      const href = $(el).attr('href') || '';
 
-      const href = a.attr('href') || '';
+      const text = $(el).text().trim();
 
       const img =
         $(el).find('img').attr('src') ||
         $(el).find('img').attr('data-src') ||
         '';
 
-      const text = $(el).text().trim();
-
-      if (href && text) {
+      if (
+        href.includes('fanfilm4k') &&
+        text.length > 1
+      ) {
         results.push({
           id: href,
           title: text.slice(0, 120),
@@ -72,8 +75,9 @@ app.get('/mypl/v1/search', async (req, res) => {
     });
 
     res.json({
-      results
+      results: results.slice(0, 20)
     });
+
   } catch (e) {
     console.error(e);
 
