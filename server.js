@@ -158,7 +158,6 @@ app.get('/mypl/v1/stream', async (req, res) => {
     });
   }
 });
-});
 
 app.get('/mypl/v1/seasons', async (req, res) => {
   res.json({
