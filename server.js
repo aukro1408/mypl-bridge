@@ -97,17 +97,67 @@ app.get('/mypl/v1/search', async (req, res) => {
 
 app.get('/mypl/v1/stream', async (req, res) => {
   try {
+    const ref = JSON.parse(req.query.ref || '{}');
+
+    if (!ref.url) {
+      return res.json({});
+    }
+
+    const response = await axios.get(ref.url, {
+      headers: {
+        'User-Agent': USER_AGENT
+      }
+    });
+
+    const html = response.data;
+
+    // ищем iframe
+    const iframeMatch = html.match(/<iframe[^>]+src="([^"]+)"/i);
+
+    if (!iframeMatch) {
+      return res.json({
+        error: 'iframe not found'
+      });
+    }
+
+    let iframeUrl = iframeMatch[1];
+
+    if (iframeUrl.startsWith('//')) {
+      iframeUrl = 'https:' + iframeUrl;
+    }
+
+    // открываем iframe
+    const iframeResp = await axios.get(iframeUrl, {
+      headers: {
+        'User-Agent': USER_AGENT,
+        Referer: ref.url
+      }
+    });
+
+    const iframeHtml = iframeResp.data;
+
+    // ищем m3u8
+    const m3u8Match = iframeHtml.match(/https?:\/\/[^"' ]+\.m3u8[^"' ]*/i);
+
+    if (!m3u8Match) {
+      return res.json({
+        error: 'm3u8 not found'
+      });
+    }
+
     res.json({
-      url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-      title: 'Test Stream',
+      url: m3u8Match[0],
+      title: 'FanFilm4K',
       quality: {},
       subtitles: []
     });
+
   } catch (e) {
-    res.status(500).json({
-      error: true
+    res.json({
+      error: e.message
     });
   }
+});
 });
 
 app.get('/mypl/v1/seasons', async (req, res) => {
